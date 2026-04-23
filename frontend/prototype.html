@@ -1,0 +1,773 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>OutfitPicker</title>
+  <script src="https://unpkg.com/react@18/umd/react.development.js"></script>
+  <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            brand: { 50:'#fdf4ff', 100:'#fae8ff', 500:'#a855f7', 600:'#9333ea', 700:'#7e22ce' }
+          }
+        }
+      }
+    }
+  </script>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+    * { font-family: 'Inter', sans-serif; }
+    .drop-zone.drag-over { border-color: #a855f7; background: #fdf4ff; }
+    .fade-in { animation: fadeIn 0.3s ease; }
+    @keyframes fadeIn { from { opacity:0; transform:translateY(8px); } to { opacity:1; transform:translateY(0); } }
+    .shimmer { background: linear-gradient(90deg,#f0f0f0 25%,#e0e0e0 50%,#f0f0f0 75%); background-size:200% 100%; animation:shimmer 1.4s infinite; }
+    @keyframes shimmer { 0%{background-position:200% 0} 100%{background-position:-200% 0} }
+    .spin-once { animation: spinOnce 0.5s ease; }
+    @keyframes spinOnce { 0%{transform:rotate(0deg) scale(0.8);opacity:0} 60%{transform:rotate(200deg) scale(1.1)} 100%{transform:rotate(360deg) scale(1);opacity:1} }
+    .card-flip { animation: cardFlip 0.45s ease; }
+    @keyframes cardFlip { 0%{transform:rotateY(90deg) scale(0.95);opacity:0} 100%{transform:rotateY(0deg) scale(1);opacity:1} }
+    .reveal { animation: reveal 0.6s cubic-bezier(0.22,1,0.36,1); }
+    @keyframes reveal { 0%{opacity:0;transform:scale(0.96)} 100%{opacity:1;transform:scale(1)} }
+    .slider-thumb::-webkit-slider-thumb { -webkit-appearance:none; width:28px; height:28px; background:white; border-radius:50%; border:3px solid #a855f7; cursor:ew-resize; box-shadow:0 2px 8px rgba(0,0,0,0.25); }
+    .pulse-ring { animation: pulseRing 1.4s ease infinite; }
+    @keyframes pulseRing { 0%{transform:scale(1);opacity:1} 70%{transform:scale(1.6);opacity:0} 100%{transform:scale(1.6);opacity:0} }
+    ::-webkit-scrollbar { width:6px; } ::-webkit-scrollbar-thumb { background:#d1d5db; border-radius:3px; }
+  </style>
+</head>
+<body class="bg-gray-50">
+<div id="root"></div>
+<script type="text/babel">
+
+const { useState, useRef, useCallback, useEffect } = React;
+
+/* ── Mock Data ─────────────────────────────────────────────────────────── */
+const WARDROBE = [
+  { id:1, name:'White Oxford Shirt',   category:'Tops',    color:'White',  tags:['formal','classic'], img:'https://images.unsplash.com/photo-1596755094514-f87e34085b2c?w=300&q=80', confidence:97 },
+  { id:2, name:'Navy Slim Chinos',     category:'Bottoms', color:'Navy',   tags:['casual','versatile'], img:'https://images.unsplash.com/photo-1542272604-787c3835535d?w=300&q=80', confidence:94 },
+  { id:3, name:'Black Blazer',         category:'Tops',    color:'Black',  tags:['formal','sharp'], img:'https://images.unsplash.com/photo-1507679799987-c73779587ccf?w=300&q=80', confidence:91 },
+  { id:4, name:'Grey Crew Sweatshirt', category:'Tops',    color:'Grey',   tags:['casual','comfy'], img:'https://images.unsplash.com/photo-1556821840-3a63f15732ce?w=300&q=80', confidence:88 },
+  { id:5, name:'White Sneakers',       category:'Shoes',   color:'White',  tags:['casual','everyday'], img:'https://images.unsplash.com/photo-1542291026-7eec264c27ff?w=300&q=80', confidence:99 },
+  { id:6, name:'Chelsea Boots',        category:'Shoes',   color:'Brown',  tags:['smart-casual'], img:'https://images.unsplash.com/photo-1608256246200-53e635b5b65f?w=300&q=80', confidence:95 },
+  { id:7, name:'Light Wash Jeans',     category:'Bottoms', color:'Blue',   tags:['casual','denim'], img:'https://images.unsplash.com/photo-1541099649105-f69ad21f3246?w=300&q=80', confidence:96 },
+  { id:8, name:'Camel Overcoat',       category:'Outerwear',color:'Camel', tags:['winter','elegant'], img:'https://images.unsplash.com/photo-1544022613-e87ca75a784a?w=300&q=80', confidence:89 },
+];
+
+const OUTFITS = [
+  { id:1, name:'Smart Casual Friday', occasion:'Work', items:[1,2,6], score:94,
+    reason:'White Oxford + Navy Chinos create a clean contrast. Chelsea Boots elevate the look.' },
+  { id:2, name:'Weekend Errands',     occasion:'Casual', items:[4,7,5], score:88,
+    reason:'Grey sweatshirt over light jeans is effortlessly relaxed. White sneakers keep it fresh.' },
+  { id:3, name:'Business Formal',     occasion:'Formal', items:[3,1,2,6], score:97,
+    reason:'Black blazer over white shirt is a power combo. Navy chinos + chelsea boots complete it.' },
+  { id:4, name:'Winter Ready',        occasion:'Outdoor', items:[8,1,2,6], score:91,
+    reason:'Camel overcoat is a statement piece. The outfit underneath stays clean and structured.' },
+];
+
+/* ── Helpers ───────────────────────────────────────────────────────────── */
+const categoryColors = { Tops:'bg-blue-100 text-blue-700', Bottoms:'bg-green-100 text-green-700', Shoes:'bg-amber-100 text-amber-700', Outerwear:'bg-purple-100 text-purple-700' };
+const occasionColors  = { Work:'bg-blue-100 text-blue-700', Casual:'bg-green-100 text-green-700', Formal:'bg-purple-100 text-purple-700', Outdoor:'bg-amber-100 text-amber-700' };
+
+function Badge({ label, colorClass }) {
+  return <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${colorClass}`}>{label}</span>;
+}
+
+function NavItem({ icon, label, active, onClick }) {
+  return (
+    <button onClick={onClick}
+      className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-xl text-sm font-medium transition-all
+        ${active ? 'bg-brand-500 text-white shadow-sm' : 'text-gray-600 hover:bg-gray-100'}`}>
+      <span className="text-lg">{icon}</span>{label}
+    </button>
+  );
+}
+
+/* ── Upload View ───────────────────────────────────────────────────────── */
+function UploadView({ onUploaded }) {
+  const [stage, setStage] = useState('idle'); // idle | uploading | scanning | done
+  const [dragOver, setDragOver] = useState(false);
+  const [progress, setProgress] = useState(0);
+  const [detected, setDetected] = useState([]);
+  const fileRef = useRef();
+
+  const simulateUpload = useCallback(() => {
+    setStage('uploading'); setProgress(0);
+    const iv = setInterval(() => setProgress(p => {
+      if (p >= 100) { clearInterval(iv); startScan(); return 100; }
+      return p + 8;
+    }), 80);
+  }, []);
+
+  const startScan = () => {
+    setStage('scanning');
+    setTimeout(() => {
+      setDetected([
+        { label:'Shirt', confidence:97, bbox:'top-2 left-4 w-32 h-20' },
+        { label:'Jeans', confidence:94, bbox:'top-24 left-4 w-32 h-24' },
+        { label:'Sneakers', confidence:99, bbox:'top-52 left-8 w-24 h-12' },
+      ]);
+      setStage('done');
+    }, 2200);
+  };
+
+  const handleDrop = e => {
+    e.preventDefault(); setDragOver(false);
+    if (e.dataTransfer.files.length) simulateUpload();
+  };
+
+  if (stage === 'done') return (
+    <div className="fade-in max-w-2xl mx-auto">
+      <h2 className="text-xl font-semibold text-gray-800 mb-1">Detection Complete</h2>
+      <p className="text-sm text-gray-500 mb-6">AI found 3 items in your photo. Review and confirm before adding to your wardrobe.</p>
+      <div className="bg-white rounded-2xl border border-gray-200 overflow-hidden mb-4">
+        <div className="relative bg-gray-100 h-64 flex items-center justify-center">
+          <img src="https://images.unsplash.com/photo-1490481651871-ab68de25d43d?w=500&q=80"
+               alt="Closet photo" className="h-full object-cover w-full" />
+          {detected.map((d,i) => (
+            <div key={i} className={`absolute border-2 border-brand-500 rounded bg-brand-500/10 ${d.bbox}`}>
+              <span className="absolute -top-5 left-0 text-xs bg-brand-500 text-white px-1.5 py-0.5 rounded font-medium">
+                {d.label} {d.confidence}%
+              </span>
+            </div>
+          ))}
+        </div>
+      </div>
+      <div className="space-y-3">
+        {detected.map((d,i) => (
+          <div key={i} className="bg-white border border-gray-200 rounded-xl p-4 flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 bg-brand-100 rounded-lg flex items-center justify-center text-brand-600 font-bold text-sm">{d.confidence}%</div>
+              <div>
+                <p className="font-medium text-gray-800">{d.label}</p>
+                <p className="text-xs text-gray-400">AI detected · tap to rename</p>
+              </div>
+            </div>
+            <div className="flex gap-2">
+              <button className="text-sm text-gray-500 border border-gray-200 px-3 py-1.5 rounded-lg hover:bg-gray-50">Edit</button>
+              <button className="text-sm text-white bg-brand-500 px-3 py-1.5 rounded-lg hover:bg-brand-600">Keep</button>
+            </div>
+          </div>
+        ))}
+      </div>
+      <button onClick={() => onUploaded()} className="mt-6 w-full py-3 bg-brand-500 text-white rounded-xl font-semibold hover:bg-brand-600 transition-colors">
+        Add 3 Items to Wardrobe →
+      </button>
+    </div>
+  );
+
+  return (
+    <div className="max-w-2xl mx-auto">
+      <h2 className="text-xl font-semibold text-gray-800 mb-1">Upload Closet Photo</h2>
+      <p className="text-sm text-gray-500 mb-6">Snap or upload a photo of your clothes. AI will detect and catalog each item automatically.</p>
+      <div
+        onDragOver={e => { e.preventDefault(); setDragOver(true); }}
+        onDragLeave={() => setDragOver(false)}
+        onDrop={handleDrop}
+        onClick={() => stage === 'idle' && fileRef.current.click()}
+        className={`drop-zone border-2 border-dashed rounded-2xl p-12 text-center cursor-pointer transition-all
+          ${dragOver ? 'drag-over border-brand-500 bg-brand-50' : 'border-gray-300 bg-white hover:border-brand-400 hover:bg-brand-50/50'}
+          ${stage !== 'idle' ? 'cursor-default' : ''}`}>
+        <input ref={fileRef} type="file" accept="image/*" className="hidden" onChange={() => simulateUpload()} />
+        {stage === 'idle' && <>
+          <div className="text-5xl mb-4">📸</div>
+          <p className="text-gray-700 font-semibold">Drop a photo here, or click to browse</p>
+          <p className="text-sm text-gray-400 mt-2">JPEG, PNG up to 20MB</p>
+          <button onClick={e => { e.stopPropagation(); simulateUpload(); }}
+            className="mt-6 inline-block px-6 py-2.5 bg-brand-500 text-white rounded-xl text-sm font-semibold hover:bg-brand-600 transition-colors">
+            Try Demo Upload
+          </button>
+        </>}
+        {stage === 'uploading' && <div className="py-4">
+          <p className="text-gray-600 font-medium mb-4">Uploading to S3…</p>
+          <div className="w-full bg-gray-100 rounded-full h-2 max-w-xs mx-auto">
+            <div className="bg-brand-500 h-2 rounded-full transition-all duration-100" style={{width:`${progress}%`}} />
+          </div>
+          <p className="text-sm text-gray-400 mt-2">{progress}%</p>
+        </div>}
+        {stage === 'scanning' && <div className="py-4">
+          <div className="text-4xl mb-3 animate-pulse">🤖</div>
+          <p className="text-gray-600 font-medium">AI scanning for clothing items…</p>
+          <p className="text-xs text-gray-400 mt-1">AWS Rekognition detecting labels</p>
+        </div>}
+      </div>
+      <div className="mt-8 grid grid-cols-3 gap-4 text-center">
+        {[['📷','Snap or upload','Any angle works'],['🤖','AI detection','Rekognition finds each item'],['👗','Review & save','Correct anything before saving']].map(([icon,title,sub],i)=>(
+          <div key={i} className="bg-white border border-gray-100 rounded-xl p-4">
+            <div className="text-2xl mb-2">{icon}</div>
+            <p className="text-sm font-semibold text-gray-700">{title}</p>
+            <p className="text-xs text-gray-400 mt-1">{sub}</p>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+/* ── Wardrobe View ─────────────────────────────────────────────────────── */
+function WardrobeView({ items }) {
+  const [filter, setFilter] = useState('All');
+  const categories = ['All', ...new Set(items.map(i => i.category))];
+  const filtered = filter === 'All' ? items : items.filter(i => i.category === filter);
+
+  return (
+    <div>
+      <div className="flex items-center justify-between mb-6">
+        <div>
+          <h2 className="text-xl font-semibold text-gray-800">My Wardrobe</h2>
+          <p className="text-sm text-gray-400">{items.length} items detected</p>
+        </div>
+      </div>
+      <div className="flex gap-2 mb-6 flex-wrap">
+        {categories.map(c => (
+          <button key={c} onClick={() => setFilter(c)}
+            className={`px-4 py-1.5 rounded-full text-sm font-medium transition-all border
+              ${filter===c ? 'bg-brand-500 text-white border-brand-500' : 'bg-white text-gray-600 border-gray-200 hover:border-brand-400'}`}>
+            {c}
+          </button>
+        ))}
+      </div>
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">
+        {filtered.map(item => (
+          <div key={item.id} className="fade-in bg-white rounded-2xl border border-gray-100 overflow-hidden hover:shadow-md transition-shadow group cursor-pointer">
+            <div className="relative overflow-hidden h-44">
+              <img src={item.img} alt={item.name} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" />
+              <div className="absolute top-2 right-2">
+                <span className="text-xs bg-white/90 font-semibold px-2 py-0.5 rounded-full text-gray-600">{item.confidence}%</span>
+              </div>
+            </div>
+            <div className="p-3">
+              <p className="font-medium text-gray-800 text-sm truncate">{item.name}</p>
+              <div className="flex items-center gap-1.5 mt-2 flex-wrap">
+                <Badge label={item.category} colorClass={categoryColors[item.category] || 'bg-gray-100 text-gray-600'} />
+                <span className="text-xs text-gray-400">{item.color}</span>
+              </div>
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+/* ── Surprise Me ───────────────────────────────────────────────────────── */
+const SURPRISE_NAMES = [
+  'Bold Monday', 'Vibe Check', 'Chaos Chic', 'Accidental Genius',
+  'The Random', 'Plot Twist', 'Lucky Combo', 'Wild Card',
+];
+const SURPRISE_REASONS = (top, bottom, shoe) => [
+  `${top.color} and ${bottom.color} together? Unexpectedly works. ${shoe.name} seals the deal.`,
+  `Nobody saw this pairing coming — but here we are. Somehow it just clicks.`,
+  `${top.name} over ${bottom.name} breaks the formula. That's exactly why it's interesting.`,
+  `The ${shoe.color} shoes pull the whole thing together without trying.`,
+  `Sometimes the algorithm gets lucky. This is one of those times.`,
+];
+
+function pick(arr) { return arr[Math.floor(Math.random() * arr.length)]; }
+
+function generateSurpriseOutfit(wardrobe) {
+  const tops      = wardrobe.filter(i => i.category === 'Tops');
+  const bottoms   = wardrobe.filter(i => i.category === 'Bottoms');
+  const shoes     = wardrobe.filter(i => i.category === 'Shoes');
+  const outerwear = wardrobe.filter(i => i.category === 'Outerwear');
+  if (!tops.length || !bottoms.length || !shoes.length) return null;
+  const top    = pick(tops);
+  const bottom = pick(bottoms);
+  const shoe   = pick(shoes);
+  const items  = [top, bottom, shoe];
+  if (outerwear.length && Math.random() > 0.5) items.push(pick(outerwear));
+  return {
+    id: 'surprise',
+    name: pick(SURPRISE_NAMES),
+    occasion: 'Surprise',
+    items: items.map(i => i.id),
+    score: Math.floor(Math.random() * 18) + 80,
+    reason: pick(SURPRISE_REASONS(top, bottom, shoe)),
+  };
+}
+
+function SurpriseCard({ outfit, wardrobe, onShuffle, onSave }) {
+  const [spinning, setSpinning] = useState(false);
+  const [key, setKey] = useState(0);
+  const getItem = id => wardrobe.find(w => w.id === id);
+
+  const handleShuffle = () => {
+    setSpinning(true);
+    setTimeout(() => setSpinning(false), 500);
+    setKey(k => k + 1);
+    onShuffle();
+  };
+
+  if (!outfit) return null;
+
+  return (
+    <div className="mb-8">
+      <div className="flex items-center justify-between mb-3">
+        <div className="flex items-center gap-2">
+          <span className="text-lg">🎲</span>
+          <span className="font-semibold text-gray-800">Surprise Me</span>
+          <span className="text-xs bg-amber-100 text-amber-700 px-2 py-0.5 rounded-full font-medium">Random Pick</span>
+        </div>
+        <button onClick={handleShuffle}
+          className="flex items-center gap-1.5 text-sm text-brand-600 font-medium hover:text-brand-700 border border-brand-200 bg-brand-50 px-3 py-1.5 rounded-lg hover:bg-brand-100 transition-colors">
+          <span className={spinning ? 'spin-once inline-block' : 'inline-block'}>🔀</span> Shuffle Again
+        </button>
+      </div>
+      <div key={key} className="card-flip bg-gradient-to-br from-brand-50 to-purple-50 border-2 border-brand-200 rounded-2xl p-5">
+        <div className="flex -space-x-3 mb-4">
+          {outfit.items.slice(0,4).map(id => { const item = getItem(id); return item ? (
+            <img key={id} src={item.img} alt={item.name}
+              className="w-14 h-14 rounded-xl border-2 border-white object-cover shadow-sm" />
+          ) : null; })}
+        </div>
+        <div className="flex items-start justify-between mb-3">
+          <div>
+            <p className="font-bold text-gray-800 text-lg">{outfit.name}</p>
+            <p className="text-xs text-gray-500">{outfit.items.length} items · AI surprised itself</p>
+          </div>
+          <div className="text-right">
+            <div className="text-2xl font-bold text-brand-600">{outfit.score}</div>
+            <div className="text-xs text-gray-400">vibe score</div>
+          </div>
+        </div>
+        <p className="text-sm text-gray-600 italic bg-white/60 rounded-xl p-3 mb-4">✨ {outfit.reason}</p>
+        <div className="flex gap-2">
+          <button onClick={onSave}
+            className="flex-1 py-2.5 bg-brand-500 text-white rounded-xl text-sm font-semibold hover:bg-brand-600 transition-colors">
+            Keep This Outfit
+          </button>
+          <button onClick={handleShuffle}
+            className="px-4 py-2.5 border border-brand-200 text-brand-600 rounded-xl text-sm font-medium hover:bg-brand-50 transition-colors">
+            🎲 Again
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ── Outfits View ──────────────────────────────────────────────────────── */
+function OutfitsView({ outfits, wardrobe, onSurpriseSaved }) {
+  const [selected, setSelected] = useState(null);
+  const [surprise, setSurprise] = useState(() => generateSurpriseOutfit(wardrobe));
+  const getItem = id => wardrobe.find(w => w.id === id);
+
+  if (selected) {
+    const outfit = outfits.find(o => o.id === selected);
+    return (
+      <div className="fade-in">
+        <button onClick={() => setSelected(null)} className="flex items-center gap-2 text-sm text-gray-500 hover:text-gray-700 mb-6">
+          ← Back to outfits
+        </button>
+        <div className="bg-white rounded-2xl border border-gray-200 p-6">
+          <div className="flex items-start justify-between mb-4">
+            <div>
+              <h2 className="text-xl font-semibold text-gray-800">{outfit.name}</h2>
+              <Badge label={outfit.occasion} colorClass={occasionColors[outfit.occasion]} />
+            </div>
+            <div className="text-right">
+              <div className="text-3xl font-bold text-brand-600">{outfit.score}</div>
+              <div className="text-xs text-gray-400">match score</div>
+            </div>
+          </div>
+          <div className="bg-gray-50 rounded-xl p-4 mb-6">
+            <p className="text-sm text-gray-600 italic">💡 {outfit.reason}</p>
+          </div>
+          <h3 className="font-semibold text-gray-700 mb-3">Items in this outfit</h3>
+          <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 mb-6">
+            {outfit.items.map(id => { const item = getItem(id); return item ? (
+              <div key={id} className="border border-gray-100 rounded-xl overflow-hidden">
+                <img src={item.img} alt={item.name} className="w-full h-32 object-cover" />
+                <div className="p-2">
+                  <p className="text-xs font-medium text-gray-700 truncate">{item.name}</p>
+                  <p className="text-xs text-gray-400">{item.color}</p>
+                </div>
+              </div>
+            ) : null; })}
+          </div>
+          <div className="flex gap-3">
+            <button className="flex-1 py-3 bg-brand-500 text-white rounded-xl font-semibold hover:bg-brand-600 transition-colors">
+              👗 Wear This Outfit
+            </button>
+            <button className="px-4 py-3 border border-gray-200 rounded-xl text-gray-600 hover:bg-gray-50">
+              🔖 Save
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div>
+      <div className="mb-6">
+        <h2 className="text-xl font-semibold text-gray-800">Outfit Recommendations</h2>
+        <p className="text-sm text-gray-400">AI-curated from your {wardrobe.length} wardrobe items</p>
+      </div>
+      <SurpriseCard
+        outfit={surprise}
+        wardrobe={wardrobe}
+        onShuffle={() => setSurprise(generateSurpriseOutfit(wardrobe))}
+        onSave={() => onSurpriseSaved(surprise.name)}
+      />
+      <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-3">Curated Picks</p>
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        {outfits.map(outfit => {
+          const previewItems = outfit.items.slice(0,3).map(getItem).filter(Boolean);
+          return (
+            <div key={outfit.id} onClick={() => setSelected(outfit.id)}
+              className="fade-in bg-white rounded-2xl border border-gray-100 p-5 hover:shadow-md transition-all cursor-pointer hover:border-brand-300">
+              <div className="flex -space-x-3 mb-4">
+                {previewItems.map(item => (
+                  <img key={item.id} src={item.img} alt={item.name}
+                    className="w-14 h-14 rounded-xl border-2 border-white object-cover" />
+                ))}
+                {outfit.items.length > 3 && (
+                  <div className="w-14 h-14 rounded-xl border-2 border-white bg-gray-100 flex items-center justify-center text-xs font-bold text-gray-500">
+                    +{outfit.items.length - 3}
+                  </div>
+                )}
+              </div>
+              <div className="flex items-start justify-between">
+                <div>
+                  <p className="font-semibold text-gray-800">{outfit.name}</p>
+                  <div className="flex items-center gap-2 mt-1">
+                    <Badge label={outfit.occasion} colorClass={occasionColors[outfit.occasion]} />
+                    <span className="text-xs text-gray-400">{outfit.items.length} items</span>
+                  </div>
+                </div>
+                <div className="text-right">
+                  <div className="text-xl font-bold text-brand-600">{outfit.score}</div>
+                  <div className="text-xs text-gray-400">score</div>
+                </div>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+/* ── Try-On View ───────────────────────────────────────────────────────── */
+const DEMO_PERSON = 'https://images.unsplash.com/photo-1529626455594-4ff0802cfb7e?w=500&q=80';
+const GEN_MESSAGES = [
+  'Analyzing your body shape…',
+  'Mapping fabric drape…',
+  'Rendering lighting and shadows…',
+  'Blending textures…',
+  'Finishing touches…',
+];
+
+// Simulated try-on results per outfit id
+const TRY_ON_RESULTS = {
+  1: 'https://images.unsplash.com/photo-1515886657613-9f3515b0c78f?w=500&q=80',
+  2: 'https://images.unsplash.com/photo-1539109136881-3be0616acf4b?w=500&q=80',
+  3: 'https://images.unsplash.com/photo-1496747611176-843222e1e57c?w=500&q=80',
+  4: 'https://images.unsplash.com/photo-1485968579580-b6d095142e6e?w=500&q=80',
+};
+
+function StepDot({ n, label, active, done }) {
+  return (
+    <div className="flex flex-col items-center gap-1">
+      <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold border-2 transition-all
+        ${done ? 'bg-brand-500 border-brand-500 text-white' : active ? 'border-brand-500 text-brand-600 bg-brand-50' : 'border-gray-200 text-gray-400 bg-white'}`}>
+        {done ? '✓' : n}
+      </div>
+      <span className={`text-xs font-medium ${active ? 'text-brand-600' : 'text-gray-400'}`}>{label}</span>
+    </div>
+  );
+}
+
+function TryOnView({ wardrobe, outfits }) {
+  const [step, setStep]               = useState('photo');   // photo | outfit | generating | result
+  const [userPhoto, setUserPhoto]     = useState(null);
+  const [selectedOutfit, setOutfit]   = useState(null);
+  const [progress, setProgress]       = useState(0);
+  const [genMsg, setGenMsg]           = useState(GEN_MESSAGES[0]);
+  const [sliderPos, setSliderPos]     = useState(50);
+  const fileRef = useRef();
+
+  const CREDITS_COST = 2;
+  const getItem = id => wardrobe.find(w => w.id === id);
+
+  const startGeneration = () => {
+    setStep('generating'); setProgress(0);
+    let i = 0;
+    const iv = setInterval(() => {
+      setProgress(p => {
+        const next = p + Math.random() * 18 + 4;
+        const msgIdx = Math.min(Math.floor(next / 22), GEN_MESSAGES.length - 1);
+        setGenMsg(GEN_MESSAGES[msgIdx]);
+        if (next >= 100) { clearInterval(iv); setTimeout(() => setStep('result'), 300); return 100; }
+        return next;
+      });
+    }, 280);
+  };
+
+  const reset = () => { setStep('photo'); setUserPhoto(null); setOutfit(null); setProgress(0); setSliderPos(50); };
+
+  const resultImg = selectedOutfit ? (TRY_ON_RESULTS[selectedOutfit.id] || TRY_ON_RESULTS[1]) : TRY_ON_RESULTS[1];
+
+  /* ── Step indicators ── */
+  const steps = [
+    { n:1, label:'Your Photo', key:'photo' },
+    { n:2, label:'Pick Outfit', key:'outfit' },
+    { n:3, label:'Generate',   key:'generating' },
+    { n:4, label:'Result',     key:'result' },
+  ];
+  const stepIdx = { photo:0, outfit:1, generating:2, result:3 };
+  const cur = stepIdx[step];
+
+  return (
+    <div className="max-w-2xl mx-auto">
+      <div className="mb-6">
+        <h2 className="text-xl font-semibold text-gray-800">Virtual Try-On</h2>
+        <p className="text-sm text-gray-400">See how any outfit looks on you before wearing it</p>
+      </div>
+
+      {/* Step bar */}
+      <div className="flex items-start justify-between mb-8 relative">
+        <div className="absolute top-4 left-8 right-8 h-0.5 bg-gray-200 -z-10">
+          <div className="bg-brand-500 h-full transition-all duration-500" style={{width:`${(cur/3)*100}%`}} />
+        </div>
+        {steps.map((s,i) => <StepDot key={s.key} {...s} active={cur===i} done={cur>i} />)}
+      </div>
+
+      {/* ── Step 1: Photo ── */}
+      {step === 'photo' && (
+        <div className="fade-in">
+          <div className="bg-white border-2 border-dashed border-gray-200 rounded-2xl p-10 text-center hover:border-brand-400 transition-colors cursor-pointer"
+               onClick={() => fileRef.current.click()}>
+            <input ref={fileRef} type="file" accept="image/*" className="hidden" onChange={() => { setUserPhoto(DEMO_PERSON); setStep('outfit'); }} />
+            <div className="text-5xl mb-4">🤳</div>
+            <p className="font-semibold text-gray-700">Upload a photo of yourself</p>
+            <p className="text-sm text-gray-400 mt-1">Full body works best · good lighting helps</p>
+            <button onClick={e => { e.stopPropagation(); setUserPhoto(DEMO_PERSON); setStep('outfit'); }}
+              className="mt-6 px-6 py-2.5 bg-brand-500 text-white rounded-xl text-sm font-semibold hover:bg-brand-600 transition-colors">
+              Use Demo Photo
+            </button>
+          </div>
+          <div className="mt-6 grid grid-cols-3 gap-3 text-center">
+            {[['🙆','Stand straight','Arms slightly out'],['💡','Good lighting','Near a window is perfect'],['📐','Full body','Head to toe if possible']].map(([icon,t,s])=>(
+              <div key={t} className="bg-white border border-gray-100 rounded-xl p-3">
+                <div className="text-xl mb-1">{icon}</div>
+                <p className="text-xs font-semibold text-gray-700">{t}</p>
+                <p className="text-xs text-gray-400">{s}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* ── Step 2: Pick Outfit ── */}
+      {step === 'outfit' && (
+        <div className="fade-in">
+          <div className="flex gap-4 mb-6">
+            <img src={userPhoto} alt="You" className="w-24 h-32 object-cover rounded-2xl border-2 border-brand-200 shadow-sm" />
+            <div className="flex-1">
+              <p className="font-semibold text-gray-800 mb-1">Looking good! 👋</p>
+              <p className="text-sm text-gray-500">Now pick an outfit to try on. Each try-on uses <span className="font-semibold text-brand-600">{CREDITS_COST} credits</span>.</p>
+              <div className="mt-3 flex items-center gap-2 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
+                <span className="text-amber-500 text-sm">⚡</span>
+                <span className="text-xs text-amber-700 font-medium">30 credits remaining</span>
+              </div>
+            </div>
+          </div>
+          <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-3">Choose an outfit</p>
+          <div className="space-y-3">
+            {outfits.map(outfit => {
+              const preview = outfit.items.slice(0,3).map(getItem).filter(Boolean);
+              const isSelected = selectedOutfit?.id === outfit.id;
+              return (
+                <div key={outfit.id} onClick={() => setOutfit(outfit)}
+                  className={`flex items-center gap-4 p-4 rounded-2xl border-2 cursor-pointer transition-all
+                    ${isSelected ? 'border-brand-500 bg-brand-50' : 'border-gray-100 bg-white hover:border-brand-200'}`}>
+                  <div className="flex -space-x-2">
+                    {preview.map(item => <img key={item.id} src={item.img} alt={item.name} className="w-10 h-10 rounded-lg border-2 border-white object-cover" />)}
+                  </div>
+                  <div className="flex-1">
+                    <p className="font-medium text-gray-800 text-sm">{outfit.name}</p>
+                    <p className="text-xs text-gray-400">{outfit.items.length} items · {outfit.occasion}</p>
+                  </div>
+                  {isSelected && <div className="w-5 h-5 rounded-full bg-brand-500 flex items-center justify-center text-white text-xs">✓</div>}
+                </div>
+              );
+            })}
+          </div>
+          <button onClick={startGeneration} disabled={!selectedOutfit}
+            className={`mt-6 w-full py-3 rounded-xl font-semibold text-white transition-all flex items-center justify-center gap-2
+              ${selectedOutfit ? 'bg-brand-500 hover:bg-brand-600' : 'bg-gray-200 text-gray-400 cursor-not-allowed'}`}>
+            ✨ Generate Try-On · {CREDITS_COST} credits
+          </button>
+        </div>
+      )}
+
+      {/* ── Step 3: Generating ── */}
+      {step === 'generating' && (
+        <div className="fade-in flex flex-col items-center py-12 text-center">
+          <div className="relative w-20 h-20 mb-6">
+            <div className="pulse-ring absolute inset-0 rounded-full bg-brand-200" />
+            <div className="w-20 h-20 rounded-full bg-brand-100 flex items-center justify-center text-4xl">✨</div>
+          </div>
+          <p className="font-semibold text-gray-800 text-lg mb-1">AI is styling you…</p>
+          <p className="text-sm text-gray-400 mb-8">{genMsg}</p>
+          <div className="w-full max-w-sm bg-gray-100 rounded-full h-2 mb-2">
+            <div className="bg-brand-500 h-2 rounded-full transition-all duration-300" style={{width:`${progress}%`}} />
+          </div>
+          <p className="text-xs text-gray-400">{Math.round(progress)}%</p>
+          <div className="mt-8 flex gap-4 opacity-60">
+            <img src={userPhoto} className="w-20 h-28 object-cover rounded-xl" />
+            <div className="flex flex-col gap-2 justify-center">
+              {selectedOutfit?.items.slice(0,2).map(getItem).filter(Boolean).map(item => (
+                <img key={item.id} src={item.img} className="w-14 h-14 object-cover rounded-lg" />
+              ))}
+            </div>
+            <div className="w-20 h-28 bg-gray-200 rounded-xl shimmer" />
+          </div>
+        </div>
+      )}
+
+      {/* ── Step 4: Result ── */}
+      {step === 'result' && (
+        <div className="fade-in">
+          <div className="bg-white rounded-2xl border border-gray-200 overflow-hidden mb-4">
+            {/* Before/After slider */}
+            <div className="relative h-96 overflow-hidden select-none">
+              {/* After (result) */}
+              <img src={resultImg} alt="Try-on result" className="absolute inset-0 w-full h-full object-cover object-top" />
+              {/* Before (original) */}
+              <div className="absolute inset-0 overflow-hidden" style={{width:`${sliderPos}%`}}>
+                <img src={userPhoto} alt="Original" className="absolute inset-0 w-full h-full object-cover object-top" style={{width:`${10000/sliderPos}%`, maxWidth:'none'}} />
+              </div>
+              {/* Divider */}
+              <div className="absolute top-0 bottom-0 w-0.5 bg-white shadow-lg" style={{left:`${sliderPos}%`}}>
+                <div className="absolute top-1/2 -translate-y-1/2 -translate-x-1/2 w-8 h-8 bg-white rounded-full shadow-lg flex items-center justify-center text-gray-500 text-xs font-bold cursor-ew-resize">
+                  ↔
+                </div>
+              </div>
+              {/* Labels */}
+              <span className="absolute top-3 left-3 text-xs bg-black/50 text-white px-2 py-1 rounded-lg font-medium">Before</span>
+              <span className="absolute top-3 right-3 text-xs bg-brand-500/90 text-white px-2 py-1 rounded-lg font-medium">AI Try-On</span>
+              {/* Slider input */}
+              <input type="range" min="5" max="95" value={sliderPos} onChange={e => setSliderPos(+e.target.value)}
+                className="slider-thumb absolute inset-0 w-full h-full opacity-0 cursor-ew-resize" />
+            </div>
+            <div className="p-4 border-t border-gray-100">
+              <p className="text-xs text-gray-400 text-center">Drag the slider to compare · Results are AI-simulated</p>
+            </div>
+          </div>
+
+          {selectedOutfit && (
+            <div className="bg-gray-50 rounded-xl p-4 mb-4 flex items-center gap-3">
+              <div className="flex -space-x-2">
+                {selectedOutfit.items.slice(0,3).map(getItem).filter(Boolean).map(item => (
+                  <img key={item.id} src={item.img} className="w-9 h-9 rounded-lg border-2 border-white object-cover" />
+                ))}
+              </div>
+              <div>
+                <p className="text-sm font-semibold text-gray-800">{selectedOutfit.name}</p>
+                <p className="text-xs text-gray-400">{selectedOutfit.items.length} items tried on</p>
+              </div>
+            </div>
+          )}
+
+          <div className="flex gap-3">
+            <button className="flex-1 py-3 bg-brand-500 text-white rounded-xl font-semibold hover:bg-brand-600 transition-colors">
+              🔖 Save Look
+            </button>
+            <button onClick={() => setStep('outfit')}
+              className="flex-1 py-3 border border-gray-200 text-gray-700 rounded-xl font-semibold hover:bg-gray-50 transition-colors">
+              Try Another
+            </button>
+            <button onClick={reset} className="px-4 py-3 border border-gray-200 rounded-xl text-gray-500 hover:bg-gray-50">
+              ↺
+            </button>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+/* ── App Shell ─────────────────────────────────────────────────────────── */
+function App() {
+  const [view, setView] = useState('outfits');
+  const [wardrobe, setWardrobe] = useState(WARDROBE);
+  const [toast, setToast] = useState(null);
+
+  const showToast = msg => {
+    setToast(msg);
+    setTimeout(() => setToast(null), 3000);
+  };
+
+  const handleUploaded = () => {
+    showToast('3 items added to your wardrobe!');
+    setView('wardrobe');
+  };
+
+  const nav = [
+    { id:'outfits', icon:'✨', label:'Outfits' },
+    { id:'tryon',   icon:'🪞', label:'Try On' },
+    { id:'wardrobe', icon:'👗', label:'Wardrobe' },
+    { id:'upload', icon:'📸', label:'Upload' },
+  ];
+
+  return (
+    <div className="min-h-screen flex bg-gray-50">
+      {/* Sidebar */}
+      <aside className="hidden sm:flex flex-col w-60 bg-white border-r border-gray-100 p-4 gap-1 sticky top-0 h-screen">
+        <div className="flex items-center gap-2.5 px-4 py-3 mb-4">
+          <div className="w-8 h-8 bg-brand-500 rounded-lg flex items-center justify-center text-white text-sm font-bold">OP</div>
+          <span className="font-bold text-gray-800">OutfitPicker</span>
+        </div>
+        {nav.map(n => <NavItem key={n.id} {...n} active={view===n.id} onClick={() => setView(n.id)} />)}
+        <div className="mt-auto">
+          <div className="bg-brand-50 rounded-xl p-3 text-xs text-brand-700">
+            <p className="font-semibold mb-1">🤖 AI Credits</p>
+            <div className="w-full bg-brand-100 rounded-full h-1.5 mb-1">
+              <div className="bg-brand-500 h-1.5 rounded-full" style={{width:'40%'}} />
+            </div>
+            <p className="text-brand-500">20 / 50 scans used</p>
+          </div>
+        </div>
+      </aside>
+
+      {/* Main */}
+      <main className="flex-1 p-6 max-w-4xl">
+        <div className="fade-in" key={view}>
+          {view === 'upload'   && <UploadView onUploaded={handleUploaded} />}
+          {view === 'wardrobe' && <WardrobeView items={wardrobe} />}
+          {view === 'outfits'  && <OutfitsView outfits={OUTFITS} wardrobe={wardrobe} onSurpriseSaved={name => showToast(`"${name}" saved to your outfits!`)} />}
+          {view === 'tryon'    && <TryOnView wardrobe={wardrobe} outfits={OUTFITS} />}
+        </div>
+      </main>
+
+      {/* Mobile bottom nav */}
+      <nav className="sm:hidden fixed bottom-0 left-0 right-0 bg-white border-t border-gray-100 flex">
+        {nav.map(n => (
+          <button key={n.id} onClick={() => setView(n.id)}
+            className={`flex-1 flex flex-col items-center py-3 text-xs font-medium transition-colors
+              ${view===n.id ? 'text-brand-600' : 'text-gray-400'}`}>
+            <span className="text-xl">{n.icon}</span>{n.label}
+          </button>
+        ))}
+      </nav>
+
+      {/* Toast */}
+      {toast && (
+        <div className="fixed bottom-20 sm:bottom-6 right-6 bg-gray-900 text-white text-sm px-4 py-3 rounded-xl shadow-lg fade-in flex items-center gap-2">
+          ✅ {toast}
+        </div>
+      )}
+    </div>
+  );
+}
+
+ReactDOM.createRoot(document.getElementById('root')).render(<App />);
+</script>
+</body>
+</html>
