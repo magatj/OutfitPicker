@@ -122,25 +122,36 @@ function Badge({ label, colorClass }) {
 }
 
 /* ── Sidebar ───────────────────────────────────────────────────────────── */
-function Sidebar({ view, setView, nav, onHelp }) {
+function Sidebar({ view, setView, primaryNav, secondaryNav, onHelp }) {
+  const NavBtn = ({ n, big }) => (
+    <button onClick={() => setView(n.id)}
+      className={`relative w-full flex items-center gap-3 rounded-xl font-medium transition-all
+        ${big ? 'px-3 py-2.5 text-sm' : 'px-3 py-2 text-xs'}
+        ${view===n.id ? 'nav-active bg-ink-700 text-white' : 'text-gray-400 hover:bg-ink-800 hover:text-white'}`}>
+      <span className={big ? 'text-base' : 'text-sm'}>{n.icon}</span>{n.label}
+    </button>
+  );
+
   return (
     <aside className="hidden sm:flex flex-col w-64 bg-ink-900 text-white p-5 gap-0.5 sticky top-0 h-screen shrink-0">
       {/* Logo */}
-      <div className="flex items-center gap-3 px-3 py-4 mb-6">
+      <div className="flex items-center gap-3 px-3 py-4 mb-4">
         <div className="w-9 h-9 bg-brand-500 rounded-xl flex items-center justify-center font-black text-sm tracking-tight">OP</div>
         <span className="font-bold text-lg tracking-tight">OutfitPicker</span>
       </div>
 
-      {/* Nav */}
-      {nav.map(n => (
-        <button key={n.id} onClick={() => setView(n.id)}
-          className={`relative w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all
-            ${view===n.id ? 'nav-active bg-ink-700 text-white' : 'text-gray-400 hover:bg-ink-800 hover:text-white'}`}>
-          <span className="text-base">{n.icon}</span>{n.label}
-        </button>
-      ))}
+      {/* Primary nav */}
+      <div className="space-y-0.5 mb-4">
+        {primaryNav.map(n => <NavBtn key={n.id} n={n} big />)}
+      </div>
 
-      {/* User + credits */}
+      {/* Secondary nav */}
+      <div className="border-t border-ink-700 pt-3 space-y-0.5">
+        <p className="text-xs text-gray-600 font-semibold px-3 mb-1.5 uppercase tracking-wider">Library</p>
+        {secondaryNav.map(n => <NavBtn key={n.id} n={n} big={false} />)}
+      </div>
+
+      {/* Bottom */}
       <div className="mt-auto space-y-3">
         <div className="bg-ink-800 rounded-xl p-3">
           <div className="flex items-center justify-between mb-2">
@@ -152,11 +163,10 @@ function Sidebar({ view, setView, nav, onHelp }) {
           </div>
         </div>
         <button onClick={onHelp}
-          className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium text-gray-400 hover:bg-ink-800 hover:text-white transition-all">
-          <span className="w-5 h-5 rounded-full border border-gray-600 flex items-center justify-center text-xs font-bold">?</span>
+          className="w-full flex items-center gap-3 px-3 py-2 rounded-xl text-xs font-medium text-gray-400 hover:bg-ink-800 hover:text-white transition-all">
+          <span className="w-4 h-4 rounded-full border border-gray-600 flex items-center justify-center text-xs font-bold">?</span>
           How it works
         </button>
-
         <div className="flex items-center gap-3 px-1 pt-1">
           <img src="https://images.unsplash.com/photo-1529626455594-4ff0802cfb7e?w=80&q=80"
             className="w-8 h-8 rounded-full object-cover border-2 border-ink-700" />
@@ -773,126 +783,141 @@ function TryOnView({ wardrobe, outfits }) {
   );
 }
 
-/* ── Onboarding ────────────────────────────────────────────────────────── */
-const OB_SLIDES = [
+/* ── Guided Tour ───────────────────────────────────────────────────────── */
+const TOUR_STEPS = [
   {
-    emoji: '👗',
-    bg: 'from-brand-500 to-violet-600',
-    title: 'Your AI stylist is ready',
-    desc: 'OutfitPicker learns your wardrobe and suggests outfits you\'ll actually wear — powered by AI, built around you.',
-    tips: null,
-    img: 'https://images.unsplash.com/photo-1558618666-fcd25c85cd64?w=600&q=80',
-  },
-  {
+    step: 1,
     emoji: '📸',
-    bg: 'from-pink-500 to-rose-500',
-    title: 'Snap your clothes once',
-    desc: 'Take a photo of any item or your whole closet. AI detects and catalogs every clothing piece automatically.',
-    tips: [
-      { icon:'📐', text:'Any angle works — lay flat or hang up' },
-      { icon:'🖼️', text:'Multiple items in one photo is fine' },
-      { icon:'✏️', text:'Correct anything the AI gets wrong' },
-    ],
-    img: 'https://images.unsplash.com/photo-1490481651871-ab68de25d43d?w=600&q=80',
+    label: 'Upload your closet',
+    heading: 'Start by uploading a closet photo',
+    instruction: 'Take or upload a photo of your clothes. AI will scan it and detect every item automatically.',
+    action: 'Go to Upload →',
+    navigateTo: 'upload',
+    hint: 'Hit "Try Demo Upload" to see AI detection in action',
+    accent: 'from-pink-500 to-rose-500',
   },
   {
-    emoji: '🗂️',
-    bg: 'from-emerald-500 to-teal-500',
-    title: 'Your digital wardrobe',
-    desc: 'Every item you own, organized and searchable. Filter by category, browse by color, find anything in seconds.',
-    tips: [
-      { icon:'🔍', text:'Filter by Tops, Bottoms, Shoes and more' },
-      { icon:'🤖', text:'AI confidence score shown on every item' },
-      { icon:'✏️', text:'Rename or recategorize anything anytime' },
-    ],
-    img: 'https://images.unsplash.com/photo-1441986300917-64674bd600d8?w=600&q=80',
+    step: 2,
+    emoji: '👗',
+    label: 'Review your wardrobe',
+    heading: 'Check what AI detected',
+    instruction: 'Your clothes are now cataloged. Browse by category, check the AI confidence scores, and fix anything it got wrong.',
+    action: 'Explore Wardrobe →',
+    navigateTo: 'wardrobe',
+    hint: 'Try tapping a filter like "Tops" or "Shoes"',
+    accent: 'from-emerald-500 to-teal-600',
   },
   {
+    step: 3,
     emoji: '✨',
-    bg: 'from-amber-500 to-orange-500',
-    title: 'Let AI do the styling',
-    desc: 'Get daily outfit picks built from what you actually own. Hit Surprise Me for a random combo when you\'re feeling adventurous.',
-    tips: [
-      { icon:'📅', text:'Fresh curated picks every day' },
-      { icon:'🎲', text:'Surprise Me shuffles a random outfit' },
-      { icon:'🔖', text:'Save favorites with one tap' },
-    ],
-    img: 'https://images.unsplash.com/photo-1515886657613-9f3515b0c78f?w=600&q=80',
+    label: 'Pick an outfit',
+    heading: 'See your outfit recommendations',
+    instruction: 'AI built outfits from your actual wardrobe. Tap a card to see all the pieces. Try "Surprise Me" for a random combo.',
+    action: 'See Outfits →',
+    navigateTo: 'outfits',
+    hint: 'Tap any outfit card to open the full detail view',
+    accent: 'from-amber-500 to-orange-500',
   },
   {
+    step: 4,
     emoji: '🪞',
-    bg: 'from-sky-500 to-blue-600',
-    title: 'See it on you first',
-    desc: 'Upload a photo of yourself and virtually try on any outfit. Drag the before/after slider to compare the look.',
-    tips: [
-      { icon:'🤳', text:'Full body shot works best' },
-      { icon:'⚡', text:'Uses 2 AI credits per try-on' },
-      { icon:'↔️', text:'Drag slider to compare before and after' },
-    ],
-    img: 'https://images.unsplash.com/photo-1496747611176-843222e1e57c?w=600&q=80',
+    label: 'Try it on',
+    heading: 'See the outfit on you',
+    instruction: 'Upload a photo of yourself, pick an outfit, and AI shows you exactly how it looks on your body. Drag the slider to compare.',
+    action: 'Try On Now →',
+    navigateTo: 'tryon',
+    hint: 'Hit "Use Demo Photo" — full flow takes under 10 seconds',
+    accent: 'from-brand-500 to-violet-600',
   },
 ];
 
-function Onboarding({ onDone }) {
-  const [slide, setSlide] = useState(0);
-  const [key, setKey]     = useState(0);
-  const s = OB_SLIDES[slide];
-  const isLast = slide === OB_SLIDES.length - 1;
-
-  const go = next => { setSlide(next); setKey(k => k+1); };
-
+function WelcomeModal({ onStart, onSkip }) {
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{background:'rgba(15,15,17,0.85)', backdropFilter:'blur(8px)'}}>
-      <div className="ob-enter w-full max-w-md bg-white rounded-3xl overflow-hidden shadow-2xl">
-
-        {/* Hero image + gradient */}
-        <div className={`relative h-52 bg-gradient-to-br ${s.bg} overflow-hidden`}>
-          <img src={s.img} alt="" className="absolute inset-0 w-full h-full object-cover object-top mix-blend-overlay opacity-50" />
-          <div className="absolute inset-0 flex flex-col items-center justify-center">
-            <div className="text-6xl mb-2 drop-shadow-lg">{s.emoji}</div>
-          </div>
-          <button onClick={onDone}
-            className="absolute top-4 right-4 text-white/70 hover:text-white text-sm font-semibold bg-black/20 backdrop-blur-sm px-3 py-1.5 rounded-full transition-colors">
-            Skip
-          </button>
-          {/* Progress dots */}
-          <div className="absolute bottom-4 left-0 right-0 flex justify-center gap-1.5">
-            {OB_SLIDES.map((_,i) => (
-              <button key={i} onClick={() => go(i)}
-                className={`h-1.5 rounded-full transition-all ${i===slide ? 'bg-white w-6' : 'bg-white/40 w-1.5'}`} />
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{background:'rgba(15,15,17,0.88)', backdropFilter:'blur(10px)'}}>
+      <div className="ob-enter w-full max-w-sm bg-white rounded-3xl overflow-hidden shadow-2xl">
+        <div className="relative h-48 bg-gradient-to-br from-brand-500 to-violet-600 overflow-hidden flex items-center justify-center">
+          <img src="https://images.unsplash.com/photo-1558618666-fcd25c85cd64?w=600&q=80"
+            alt="" className="absolute inset-0 w-full h-full object-cover mix-blend-overlay opacity-40" />
+          <div className="text-7xl relative z-10">👗</div>
+        </div>
+        <div className="p-7">
+          <h2 className="text-2xl font-black text-gray-900 mb-2">Welcome to OutfitPicker</h2>
+          <p className="text-sm text-gray-500 leading-relaxed mb-6">
+            Let's get you set up in 4 quick steps — uploading your closet, building your wardrobe, picking outfits, and trying one on.
+          </p>
+          <div className="flex gap-3 mb-2">
+            {TOUR_STEPS.map(s => (
+              <div key={s.step} className={`flex-1 h-1 rounded-full bg-gradient-to-r ${s.accent}`} />
             ))}
           </div>
+          <p className="text-xs text-gray-400 mb-5">4 steps · takes about 2 minutes</p>
+          <button onClick={onStart}
+            className="w-full py-3.5 bg-gradient-to-r from-brand-500 to-violet-600 text-white font-black rounded-2xl text-sm hover:opacity-90 transition-opacity">
+            Let's get started →
+          </button>
+          <button onClick={onSkip} className="w-full mt-2 py-2.5 text-gray-400 text-sm font-medium hover:text-gray-600 transition-colors">
+            Skip for now
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function GuidedTour({ stepIndex, onNext, onSkip, setView, completedStep }) {
+  const s = TOUR_STEPS[stepIndex];
+  const isLast = stepIndex === TOUR_STEPS.length - 1;
+  const isDone = stepIndex >= TOUR_STEPS.length;
+  if (isDone) return null;
+
+  return (
+    <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-40 w-full max-w-md px-4 sm:px-0">
+      <div className="ob-enter bg-ink-900 text-white rounded-3xl shadow-2xl overflow-hidden border border-ink-700">
+        {/* Progress bar */}
+        <div className="flex h-1">
+          {TOUR_STEPS.map((t, i) => (
+            <div key={i} className={`flex-1 transition-all duration-500 ${i < stepIndex ? `bg-gradient-to-r ${t.accent}` : i === stepIndex ? `bg-gradient-to-r ${t.accent} opacity-60` : 'bg-ink-700'}`} />
+          ))}
         </div>
 
-        {/* Content */}
-        <div className="p-7" key={key}>
-          <div className="ob-slide">
-            <h2 className="text-xl font-black text-gray-900 mb-2">{s.title}</h2>
-            <p className="text-sm text-gray-500 leading-relaxed mb-5">{s.desc}</p>
-
-            {s.tips && (
-              <div className="space-y-2.5 mb-5">
-                {s.tips.map((tip, i) => (
-                  <div key={i} className="flex items-center gap-3 bg-gray-50 rounded-2xl px-4 py-3">
-                    <span className="text-lg">{tip.icon}</span>
-                    <span className="text-sm text-gray-700 font-medium">{tip.text}</span>
-                  </div>
-                ))}
+        <div className="p-5">
+          <div className="flex items-start justify-between mb-3">
+            <div className="flex items-center gap-2.5">
+              <div className={`w-9 h-9 rounded-xl bg-gradient-to-br ${s.accent} flex items-center justify-center text-lg`}>
+                {s.emoji}
               </div>
-            )}
+              <div>
+                <p className="text-xs text-gray-400 font-semibold uppercase tracking-wide">Step {s.step} of {TOUR_STEPS.length}</p>
+                <p className="text-sm font-black text-white leading-tight">{s.heading}</p>
+              </div>
+            </div>
+            <button onClick={onSkip} className="text-gray-500 hover:text-gray-300 transition-colors text-lg leading-none mt-0.5">✕</button>
           </div>
 
-          <div className="flex items-center gap-3 mt-2">
-            {slide > 0 && (
-              <button onClick={() => go(slide-1)}
-                className="px-4 py-3 border border-gray-200 rounded-2xl text-gray-500 hover:bg-gray-50 transition-colors font-semibold text-sm">
+          <p className="text-sm text-gray-300 leading-relaxed mb-3">{s.instruction}</p>
+
+          <div className="flex items-center gap-2 bg-ink-800 rounded-xl px-3 py-2 mb-4">
+            <span className="text-yellow-400 text-sm">💡</span>
+            <span className="text-xs text-gray-400">{s.hint}</span>
+          </div>
+
+          <div className="flex items-center gap-2.5">
+            {stepIndex > 0 && (
+              <button onClick={() => onNext(stepIndex - 1)}
+                className="px-4 py-2.5 rounded-xl border border-ink-600 text-gray-400 hover:text-white hover:border-ink-500 transition-all text-sm font-semibold">
                 ←
               </button>
             )}
-            <button onClick={() => isLast ? onDone() : go(slide+1)}
-              className={`flex-1 py-3 rounded-2xl font-bold text-sm text-white transition-colors bg-gradient-to-r ${s.bg} hover:opacity-90`}>
-              {isLast ? 'Get Started 🚀' : 'Next →'}
+            <button onClick={() => { setView(s.navigateTo); onNext(stepIndex + 1); }}
+              className={`flex-1 py-2.5 rounded-xl font-black text-sm text-white bg-gradient-to-r ${s.accent} hover:opacity-90 transition-opacity`}>
+              {s.action}
             </button>
+            {!isLast && (
+              <button onClick={() => onNext(stepIndex + 1)}
+                className="px-4 py-2.5 rounded-xl border border-ink-600 text-gray-400 hover:text-white hover:border-ink-500 transition-all text-sm font-medium whitespace-nowrap">
+                Skip step
+              </button>
+            )}
           </div>
         </div>
       </div>
@@ -902,52 +927,90 @@ function Onboarding({ onDone }) {
 
 /* ── App Shell ─────────────────────────────────────────────────────────── */
 function App() {
-  const [view, setView]           = useState('outfits');
-  const [wardrobe]                = useState(WARDROBE);
-  const [toast, setToast]         = useState(null);
-  const [showOnboarding, setShowOnboarding] = useState(true);
+  const [view, setView]         = useState('outfits');
+  const [wardrobe]              = useState(WARDROBE);
+  const [toast, setToast]       = useState(null);
+  const [tourPhase, setTourPhase] = useState('welcome'); // 'welcome' | 0-3 (step index) | 'done'
 
   const showToast = msg => { setToast(msg); setTimeout(()=>setToast(null), 3200); };
-  const handleUploaded = () => { showToast('3 items added to your wardrobe!'); setView('wardrobe'); };
 
-  const nav = [
-    { id:'outfits', icon:'✨', label:'Outfits' },
+  const handleUploaded = () => {
+    showToast('3 items added to your wardrobe!');
+    setView('wardrobe');
+    if (tourPhase === 0) setTourPhase(1);
+  };
+
+  const primaryNav   = [
     { id:'tryon',   icon:'🪞', label:'Try On' },
-    { id:'wardrobe',icon:'👗', label:'Wardrobe' },
-    { id:'upload',  icon:'📸', label:'Upload' },
+    { id:'outfits', icon:'✨', label:'Outfits' },
   ];
+  const secondaryNav = [
+    { id:'wardrobe', icon:'👗', label:'Wardrobe' },
+    { id:'upload',   icon:'📸', label:'Upload' },
+  ];
+  const allNav = [...primaryNav, ...secondaryNav];
 
   return (
     <div className="min-h-screen flex">
-      <Sidebar view={view} setView={setView} nav={nav} onHelp={() => setShowOnboarding(true)} />
+      <Sidebar
+        view={view} setView={setView}
+        primaryNav={primaryNav} secondaryNav={secondaryNav}
+        onHelp={() => setTourPhase('welcome')}
+      />
 
       <main className="flex-1 overflow-y-auto">
         <div className="max-w-4xl mx-auto p-6 sm:p-8">
           <div className="fade-in" key={view}>
-            {view==='outfits'  && <OutfitsView outfits={OUTFITS} wardrobe={wardrobe} onSurpriseSaved={name=>showToast(`"${name}" saved!`)} />}
             {view==='tryon'    && <TryOnView wardrobe={wardrobe} outfits={OUTFITS} />}
+            {view==='outfits'  && <OutfitsView outfits={OUTFITS} wardrobe={wardrobe} onSurpriseSaved={name=>showToast(`"${name}" saved!`)} />}
             {view==='wardrobe' && <WardrobeView items={wardrobe} />}
             {view==='upload'   && <UploadView onUploaded={handleUploaded} />}
           </div>
         </div>
       </main>
 
-      {/* Mobile nav */}
-      <nav className="sm:hidden fixed bottom-0 left-0 right-0 bg-white border-t border-gray-100 flex z-50">
-        {nav.map(n => (
+      {/* Mobile nav — primary items large, secondary smaller */}
+      <nav className="sm:hidden fixed bottom-0 left-0 right-0 bg-white border-t border-gray-100 flex z-40">
+        {primaryNav.map(n => (
           <button key={n.id} onClick={() => setView(n.id)}
-            className={`flex-1 flex flex-col items-center py-3 text-xs font-semibold transition-colors
+            className={`flex-1 flex flex-col items-center py-3 text-xs font-black transition-colors
               ${view===n.id ? 'text-brand-600' : 'text-gray-400'}`}>
             <span className="text-xl leading-none mb-0.5">{n.icon}</span>{n.label}
           </button>
         ))}
+        {secondaryNav.map(n => (
+          <button key={n.id} onClick={() => setView(n.id)}
+            className={`flex-1 flex flex-col items-center py-2.5 text-xs font-medium transition-colors
+              ${view===n.id ? 'text-brand-500' : 'text-gray-300'}`}>
+            <span className="text-base leading-none mb-0.5">{n.icon}</span>{n.label}
+          </button>
+        ))}
       </nav>
 
-      {showOnboarding && <Onboarding onDone={() => setShowOnboarding(false)} />}
+      {/* Welcome modal */}
+      {tourPhase === 'welcome' && (
+        <WelcomeModal
+          onStart={() => setTourPhase(0)}
+          onSkip={() => setTourPhase('done')}
+        />
+      )}
+
+      {/* Guided tour bar */}
+      {typeof tourPhase === 'number' && tourPhase < TOUR_STEPS.length && (
+        <GuidedTour
+          stepIndex={tourPhase}
+          onNext={next => setTourPhase(next >= TOUR_STEPS.length ? 'done' : next)}
+          onSkip={() => setTourPhase('done')}
+          setView={setView}
+        />
+      )}
+
+      {/* Tour complete toast */}
+      {tourPhase === 'done' && toast === null && (() => { setTimeout(() => showToast('You\'re all set! Enjoy OutfitPicker 🎉'), 100); setTourPhase('finished'); return null; })()}
 
       {/* Toast */}
       {toast && (
-        <div className="fixed bottom-6 right-6 bg-gray-900 text-white text-sm px-4 py-3 rounded-2xl shadow-2xl fade-in font-medium flex items-center gap-2 z-50">
+        <div className="fixed bottom-24 sm:bottom-6 right-6 bg-gray-900 text-white text-sm px-4 py-3 rounded-2xl shadow-2xl fade-in font-medium flex items-center gap-2 z-50">
           ✅ {toast}
         </div>
       )}
