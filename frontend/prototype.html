@@ -22,7 +22,7 @@
     }
   </script>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=Playfair+Display:ital,wght@0,700;0,900;1,700&display=swap" rel="stylesheet" />
   <style>
     * { font-family: 'Inter', sans-serif; }
     body { background: #f8f7f5; }
@@ -55,6 +55,8 @@
     /* Wardrobe card hover */
     .wardrobe-card:hover .card-img { transform:scale(1.06); }
     .card-img { transition: transform 0.4s ease; }
+
+    .display { font-family: 'Playfair Display', serif; }
 
     /* Nav active bar */
     .nav-active::before { content:''; position:absolute; left:0; top:50%; transform:translateY(-50%); width:3px; height:60%; background:#a855f7; border-radius:0 2px 2px 0; }
@@ -420,27 +422,31 @@ function OutfitsView({ outfits, wardrobe, onSurpriseSaved }) {
         <button onClick={() => setSelected(null)} className="flex items-center gap-1.5 text-sm text-gray-400 hover:text-gray-700 mb-6 font-medium transition-colors">
           ← Back
         </button>
-        <div className="relative rounded-3xl overflow-hidden h-72 mb-6">
+        {/* Tall hero */}
+        <div className="relative rounded-3xl overflow-hidden h-96 mb-6">
           <img src={outfit.hero} alt={outfit.name} className="w-full h-full object-cover object-top" />
-          <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent" />
+          <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/20 to-transparent" />
           <div className="absolute bottom-0 left-0 right-0 p-6">
             <Badge label={outfit.occasion} colorClass={occasionColors[outfit.occasion]} />
-            <h2 className="text-white text-2xl font-black mt-2">{outfit.name}</h2>
+            <h2 className="display text-white text-3xl font-black mt-2 leading-tight">{outfit.name}</h2>
           </div>
           <div className="absolute top-4 right-4">
-            <ScoreRing score={outfit.score} size={56} />
+            <ScoreRing score={outfit.score} size={60} />
           </div>
         </div>
 
-        <div className="bg-white rounded-2xl border border-gray-100 p-5 mb-4">
-          <p className="text-sm text-gray-600 leading-relaxed">💡 {outfit.reason}</p>
+        {/* AI reason */}
+        <div className="flex gap-3 items-start bg-white rounded-2xl border border-gray-100 p-4 mb-6">
+          <span className="text-xl mt-0.5">💡</span>
+          <p className="text-sm text-gray-600 leading-relaxed italic">{outfit.reason}</p>
         </div>
 
-        <h3 className="font-bold text-gray-800 mb-3 text-sm uppercase tracking-wide">Pieces</h3>
-        <div className="grid grid-cols-3 gap-3 mb-6">
+        {/* Pieces — horizontal scroll */}
+        <h3 className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-3">The Pieces</h3>
+        <div className="flex gap-3 overflow-x-auto pb-2 mb-6" style={{scrollbarWidth:'none'}}>
           {outfit.items.map(id => { const item = getItem(id); return item ? (
-            <div key={id} className="rounded-2xl overflow-hidden border border-gray-100 bg-white">
-              <img src={item.img} alt={item.name} className="w-full h-28 object-cover" />
+            <div key={id} className="shrink-0 w-36 rounded-2xl overflow-hidden border border-gray-100 bg-white">
+              <img src={item.img} alt={item.name} className="w-full h-44 object-cover" />
               <div className="p-2.5">
                 <p className="text-xs font-bold text-gray-800 truncate">{item.name}</p>
                 <p className="text-xs text-gray-400">{item.color}</p>
@@ -450,10 +456,10 @@ function OutfitsView({ outfits, wardrobe, onSurpriseSaved }) {
         </div>
 
         <div className="flex gap-3">
-          <button className="flex-1 py-3.5 bg-brand-500 hover:bg-brand-600 text-white font-bold rounded-2xl transition-colors text-sm">
+          <button className="flex-1 py-3.5 bg-ink-900 hover:bg-ink-800 text-white font-bold rounded-2xl transition-colors text-sm">
             Wear This Outfit
           </button>
-          <button className="px-5 py-3.5 border border-gray-200 rounded-2xl text-gray-600 hover:bg-gray-50 transition-colors text-sm font-medium">
+          <button className="px-5 py-3.5 border border-gray-200 rounded-2xl text-gray-500 hover:bg-gray-50 transition-colors text-lg">
             🔖
           </button>
         </div>
@@ -463,18 +469,21 @@ function OutfitsView({ outfits, wardrobe, onSurpriseSaved }) {
 
   return (
     <div>
-      {/* Hero greeting */}
-      <div className="bg-gradient-to-br from-ink-900 to-ink-700 rounded-3xl p-7 mb-8 relative overflow-hidden">
-        <div className="absolute -right-6 -top-6 w-40 h-40 bg-brand-500/20 rounded-full blur-2xl" />
-        <p className="text-brand-300 text-sm font-semibold mb-1">Good morning, Jesse 👋</p>
-        <h2 className="text-white text-2xl font-black mb-4">What are you wearing today?</h2>
-        <div className="flex gap-6">
-          {[['8','Wardrobe items'],['4','Saved outfits'],['30','AI credits']].map(([n,l])=>(
-            <div key={l}>
-              <div className="text-white font-black text-xl">{n}</div>
-              <div className="text-gray-400 text-xs">{l}</div>
-            </div>
-          ))}
+      {/* Hero — featured outfit */}
+      <div className="relative rounded-3xl overflow-hidden h-64 mb-8 cursor-pointer group" onClick={() => setSelected(outfits[0].id)}>
+        <img src={outfits[0].hero} alt={outfits[0].name}
+          className="w-full h-full object-cover object-top group-hover:scale-105 transition-transform duration-700" />
+        <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/30 to-transparent" />
+        <div className="absolute top-4 left-5">
+          <p className="text-white/60 text-xs font-semibold tracking-widest uppercase">Today's Pick</p>
+        </div>
+        <div className="absolute bottom-0 left-0 right-0 p-5 flex items-end justify-between">
+          <div>
+            <Badge label={outfits[0].occasion} colorClass={occasionColors[outfits[0].occasion]} />
+            <h2 className="display text-white text-3xl font-black mt-1 leading-tight">{outfits[0].name}</h2>
+            <p className="text-white/50 text-xs mt-1">{outfits[0].items.length} pieces · tap to explore</p>
+          </div>
+          <ScoreRing score={outfits[0].score} size={52} />
         </div>
       </div>
 
@@ -527,30 +536,23 @@ function OutfitsView({ outfits, wardrobe, onSurpriseSaved }) {
           const previewItems = outfit.items.slice(0,3).map(getItem).filter(Boolean);
           return (
             <div key={outfit.id} onClick={() => setSelected(outfit.id)}
-              className="fade-in bg-white rounded-3xl border border-gray-100 overflow-hidden hover:shadow-lg transition-all cursor-pointer group"
+              className="fade-in rounded-3xl overflow-hidden hover:shadow-xl transition-all cursor-pointer group relative"
               style={{animationDelay:`${i*50}ms`}}>
-              <div className="relative h-44 overflow-hidden">
+              <div className="relative h-64 overflow-hidden">
                 <img src={outfit.hero} alt={outfit.name} className="w-full h-full object-cover object-top group-hover:scale-105 transition-transform duration-500" />
-                <div className="absolute inset-0 bg-gradient-to-t from-black/70 to-transparent" />
+                <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/10 to-transparent" />
                 <div className="absolute top-3 right-3"><ScoreRing score={outfit.score} size={44} /></div>
                 <div className="absolute bottom-0 left-0 right-0 p-4">
                   <Badge label={outfit.occasion} colorClass={occasionColors[outfit.occasion]} />
-                  <p className="text-white font-bold mt-1">{outfit.name}</p>
+                  <p className="display text-white font-bold text-lg mt-1">{outfit.name}</p>
+                  <div className="flex -space-x-1.5 mt-2">
+                    {previewItems.map(item => (
+                      <img key={item.id} src={item.img} alt={item.name}
+                        className="w-7 h-7 rounded-lg border-2 border-white/40 object-cover" />
+                    ))}
+                    <span className="text-white/50 text-xs self-center ml-2">{outfit.items.length} pieces</span>
+                  </div>
                 </div>
-              </div>
-              <div className="p-4 flex items-center justify-between">
-                <div className="flex -space-x-2">
-                  {previewItems.map(item => (
-                    <img key={item.id} src={item.img} alt={item.name}
-                      className="w-8 h-8 rounded-lg border-2 border-white object-cover" />
-                  ))}
-                  {outfit.items.length > 3 && (
-                    <div className="w-8 h-8 rounded-lg border-2 border-white bg-gray-100 flex items-center justify-center text-xs font-bold text-gray-500">
-                      +{outfit.items.length-3}
-                    </div>
-                  )}
-                </div>
-                <span className="text-xs text-gray-400 font-medium">{outfit.items.length} pieces →</span>
               </div>
             </div>
           );
@@ -619,7 +621,7 @@ function TryOnView({ wardrobe, outfits }) {
   return (
     <div className="max-w-xl mx-auto">
       <div className="mb-6">
-        <h2 className="text-2xl font-bold text-gray-900">Virtual Try-On</h2>
+        <h2 className="display text-3xl font-black text-gray-900">Virtual Try-On</h2>
         <p className="text-gray-400 text-sm mt-0.5">See the outfit on you before wearing it</p>
       </div>
 
@@ -628,19 +630,40 @@ function TryOnView({ wardrobe, outfits }) {
       {/* Step 1 */}
       {step==='photo' && (
         <div className="fade-in">
-          <div className="rounded-3xl border-2 border-dashed border-gray-200 bg-white p-12 text-center hover:border-brand-400 transition-colors cursor-pointer"
-            onClick={() => fileRef.current.click()}>
-            <input ref={fileRef} type="file" accept="image/*" className="hidden"
-              onChange={() => { setPhoto(DEMO_PERSON); setStep('outfit'); }} />
-            <div className="w-16 h-16 bg-brand-100 rounded-2xl flex items-center justify-center text-3xl mx-auto mb-4">🤳</div>
-            <p className="font-bold text-gray-800">Upload a photo of yourself</p>
-            <p className="text-sm text-gray-400 mt-1 mb-6">Full body · good lighting · neutral background</p>
-            <button onClick={e => { e.stopPropagation(); setPhoto(DEMO_PERSON); setStep('outfit'); }}
-              className="px-6 py-2.5 bg-brand-500 text-white rounded-xl text-sm font-bold hover:bg-brand-600 transition-colors">
-              Use Demo Photo
+          {/* Split-screen hero */}
+          <div className="relative rounded-3xl overflow-hidden h-72 mb-5">
+            <div className="absolute inset-0 flex">
+              <img src="https://images.unsplash.com/photo-1529626455594-4ff0802cfb7e?w=400&q=80"
+                alt="Before" className="w-1/2 h-full object-cover object-top" />
+              <img src="https://images.unsplash.com/photo-1496747611176-843222e1e57c?w=400&q=80"
+                alt="After"  className="w-1/2 h-full object-cover object-top" />
+            </div>
+            <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/10 to-transparent" />
+            {/* Centre divider */}
+            <div className="absolute top-0 bottom-0 left-1/2 w-0.5 bg-white/40" />
+            <div className="absolute top-3 left-4 text-xs bg-black/40 backdrop-blur-sm text-white/70 px-2 py-1 rounded-lg font-medium">You</div>
+            <div className="absolute top-3 right-4 text-xs bg-brand-500/90 backdrop-blur-sm text-white px-2 py-1 rounded-lg font-semibold">AI Styled</div>
+            <div className="absolute bottom-0 left-0 right-0 p-5 text-center">
+              <h3 className="display text-white text-2xl font-black">See it on you first</h3>
+              <p className="text-white/60 text-sm mt-1">Upload your photo — AI does the rest</p>
+            </div>
+          </div>
+
+          <input ref={fileRef} type="file" accept="image/*" className="hidden"
+            onChange={() => { setPhoto(DEMO_PERSON); setStep('outfit'); }} />
+
+          <div className="flex gap-3 mb-4">
+            <button onClick={() => fileRef.current.click()}
+              className="flex-1 py-3.5 bg-ink-900 hover:bg-ink-800 text-white font-bold rounded-2xl text-sm transition-colors flex items-center justify-center gap-2">
+              📷 Upload My Photo
+            </button>
+            <button onClick={() => { setPhoto(DEMO_PERSON); setStep('outfit'); }}
+              className="flex-1 py-3.5 bg-brand-500 hover:bg-brand-600 text-white font-bold rounded-2xl text-sm transition-colors">
+              Use Demo Photo →
             </button>
           </div>
-          <div className="mt-4 grid grid-cols-3 gap-3">
+
+          <div className="grid grid-cols-3 gap-3">
             {[['🙆','Stand straight','Arms slightly out'],['💡','Good lighting','Near a window'],['📐','Full body','Head to toe']].map(([icon,t,s])=>(
               <div key={t} className="bg-white border border-gray-100 rounded-2xl p-3 text-center">
                 <div className="text-xl mb-1">{icon}</div>
@@ -841,7 +864,7 @@ function WelcomeModal({ onStart, onSkip }) {
           <div className="text-7xl relative z-10">👗</div>
         </div>
         <div className="p-7">
-          <h2 className="text-2xl font-black text-gray-900 mb-2">Welcome to OutfitPicker</h2>
+          <h2 className="display text-2xl font-black text-gray-900 mb-2">Welcome to OutfitPicker</h2>
           <p className="text-sm text-gray-500 leading-relaxed mb-6">
             Let's get you set up in 4 quick steps — uploading your closet, building your wardrobe, picking outfits, and trying one on.
           </p>
