@@ -1,5 +1,8 @@
-# Markdown
+# Markdown (allow project docs)
 *.md
+!CLAUDE.md
+!PROMPT.md
+!README.md
 
 # Terraform
 **/.terraform/
