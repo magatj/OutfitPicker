@@ -573,7 +573,7 @@ const TRYON_IMGS  = {
 };
 
 function StepBar({ cur }) {
-  const steps = ['Your Photo','Pick Outfit','Generate','Result'];
+  const steps = ['Your Photo','Closet Photo','Pick Outfit','Generate','Result'];
   return (
     <div className="flex items-center gap-0 mb-8">
       {steps.map((s, i) => (
@@ -583,10 +583,10 @@ function StepBar({ cur }) {
               ${i < cur ? 'bg-brand-500 border-brand-500 text-white' : i===cur ? 'border-brand-500 text-brand-600 bg-brand-50' : 'border-gray-200 text-gray-400 bg-white'}`}>
               {i < cur ? '✓' : i+1}
             </div>
-            <span className={`text-xs mt-1 font-medium ${i===cur?'text-brand-600':'text-gray-400'}`}>{s}</span>
+            <span className={`text-xs mt-1 font-medium whitespace-nowrap ${i===cur?'text-brand-600':'text-gray-400'}`}>{s}</span>
           </div>
           {i < steps.length-1 && (
-            <div className="flex-1 h-0.5 mx-2 mb-5 rounded-full" style={{background: i<cur?'#a855f7':'#e5e7eb'}} />
+            <div className="flex-1 h-0.5 mx-1 mb-5 rounded-full" style={{background: i<cur?'#a855f7':'#e5e7eb'}} />
           )}
         </React.Fragment>
       ))}
@@ -603,7 +603,8 @@ function TryOnView({ wardrobe, outfits }) {
   const [slider, setSlider]     = useState(50);
   const fileRef = useRef();
   const getItem = id => wardrobe.find(w => w.id === id);
-  const stepIdx = { photo:0, outfit:1, generating:2, result:3 };
+  const stepIdx = { photo:0, closet:1, 'upload-closet':1, outfit:2, generating:3, result:4 };
+  const surpriseOutfit = () => pick(outfits);
 
   const startGen = () => {
     setStep('generating'); setProgress(0);
@@ -650,14 +651,14 @@ function TryOnView({ wardrobe, outfits }) {
           </div>
 
           <input ref={fileRef} type="file" accept="image/*" className="hidden"
-            onChange={() => { setPhoto(DEMO_PERSON); setStep('outfit'); }} />
+            onChange={() => { setPhoto(DEMO_PERSON); setStep('closet'); }} />
 
           <div className="flex gap-3 mb-4">
             <button onClick={() => fileRef.current.click()}
               className="flex-1 py-3.5 bg-ink-900 hover:bg-ink-800 text-white font-bold rounded-2xl text-sm transition-colors flex items-center justify-center gap-2">
               📷 Upload My Photo
             </button>
-            <button onClick={() => { setPhoto(DEMO_PERSON); setStep('outfit'); }}
+            <button onClick={() => { setPhoto(DEMO_PERSON); setStep('closet'); }}
               className="flex-1 py-3.5 bg-brand-500 hover:bg-brand-600 text-white font-bold rounded-2xl text-sm transition-colors">
               Use Demo Photo →
             </button>
@@ -675,14 +676,84 @@ function TryOnView({ wardrobe, outfits }) {
         </div>
       )}
 
-      {/* Step 2 */}
+      {/* Step 2 — Closet check */}
+      {step==='closet' && (
+        <div className="fade-in">
+          {wardrobe.length > 0 ? (
+            <>
+              <div className="bg-emerald-50 border border-emerald-200 rounded-2xl p-4 flex items-center gap-3 mb-5">
+                <div className="w-10 h-10 bg-emerald-500 rounded-xl flex items-center justify-center text-white text-lg shrink-0">✓</div>
+                <div>
+                  <p className="font-bold text-emerald-800">Closet already scanned</p>
+                  <p className="text-xs text-emerald-600 mt-0.5">{wardrobe.length} items detected and ready to style</p>
+                </div>
+              </div>
+
+              {/* Wardrobe thumbnail strip */}
+              <div className="flex gap-2 overflow-x-auto pb-2 mb-5" style={{scrollbarWidth:'none'}}>
+                {wardrobe.map(item => (
+                  <div key={item.id} className="shrink-0 text-center">
+                    <img src={item.img} alt={item.name}
+                      className="w-16 h-20 object-cover rounded-xl border-2 border-white shadow-sm" />
+                    <p className="text-xs text-gray-400 mt-1 w-16 truncate">{item.name.split(' ')[0]}</p>
+                  </div>
+                ))}
+              </div>
+
+              <button onClick={() => setStep('outfit')}
+                className="w-full py-3.5 bg-brand-500 hover:bg-brand-600 text-white font-bold rounded-2xl text-sm transition-colors mb-3">
+                Use These Items → Pick Outfit
+              </button>
+              <button onClick={() => setStep('upload-closet')}
+                className="w-full py-2.5 border border-gray-200 text-gray-500 font-medium rounded-2xl text-sm hover:bg-gray-50 transition-colors">
+                📸 Rescan my closet instead
+              </button>
+            </>
+          ) : (
+            <>
+              <div className="bg-amber-50 border border-amber-200 rounded-2xl p-4 flex items-center gap-3 mb-5">
+                <div className="w-10 h-10 bg-amber-400 rounded-xl flex items-center justify-center text-white text-lg shrink-0">!</div>
+                <div>
+                  <p className="font-bold text-amber-800">No closet scanned yet</p>
+                  <p className="text-xs text-amber-600 mt-0.5">Take a photo of your closet so AI can detect your clothes</p>
+                </div>
+              </div>
+              <button onClick={() => setStep('upload-closet')}
+                className="w-full py-3.5 bg-brand-500 hover:bg-brand-600 text-white font-bold rounded-2xl text-sm transition-colors">
+                📸 Scan My Closet Now
+              </button>
+            </>
+          )}
+        </div>
+      )}
+
+      {/* Step 2b — Inline closet upload (rescan) */}
+      {step==='upload-closet' && (
+        <div className="fade-in">
+          <div className="bg-white border-2 border-dashed border-gray-200 rounded-3xl p-10 text-center mb-4 hover:border-brand-400 transition-colors cursor-pointer"
+            onClick={() => setTimeout(() => setStep('closet'), 1800)}>
+            <div className="w-14 h-14 bg-brand-100 rounded-2xl flex items-center justify-center text-3xl mx-auto mb-4">🚪</div>
+            <p className="font-bold text-gray-800">Open your closet and take a photo</p>
+            <p className="text-sm text-gray-400 mt-1 mb-5">Capture everything hanging inside — AI detects every item at once</p>
+            <button onClick={e => { e.stopPropagation(); setTimeout(() => setStep('closet'), 1800); }}
+              className="px-6 py-2.5 bg-brand-500 text-white rounded-xl text-sm font-bold hover:bg-brand-600 transition-colors">
+              Try Demo Scan
+            </button>
+          </div>
+          <button onClick={() => setStep('closet')} className="w-full py-2.5 text-gray-400 text-sm hover:text-gray-600 transition-colors">
+            ← Back
+          </button>
+        </div>
+      )}
+
+      {/* Step 3 — Pick Outfit */}
       {step==='outfit' && (
         <div className="fade-in">
-          <div className="flex gap-4 items-start mb-6 bg-white rounded-2xl p-4 border border-gray-100">
+          <div className="flex gap-4 items-start mb-5 bg-white rounded-2xl p-4 border border-gray-100">
             <img src={userPhoto} className="w-16 h-20 object-cover object-top rounded-xl border border-gray-100" />
             <div className="flex-1">
               <p className="font-bold text-gray-900">Looking good! 👋</p>
-              <p className="text-sm text-gray-400 mt-0.5">Pick an outfit to try on.</p>
+              <p className="text-sm text-gray-400 mt-0.5">Pick an outfit or let AI surprise you.</p>
               <div className="mt-2 inline-flex items-center gap-1.5 bg-amber-50 border border-amber-200 px-2.5 py-1 rounded-lg">
                 <span className="text-amber-500 text-xs">⚡</span>
                 <span className="text-xs text-amber-700 font-semibold">2 credits per try-on · 30 remaining</span>
@@ -690,6 +761,13 @@ function TryOnView({ wardrobe, outfits }) {
             </div>
           </div>
 
+          {/* Surprise Me */}
+          <button onClick={() => setSelected(surpriseOutfit())}
+            className="w-full mb-4 py-3 rounded-2xl border-2 border-dashed border-brand-300 bg-brand-50 hover:bg-brand-100 transition-colors flex items-center justify-center gap-2 font-bold text-brand-600 text-sm">
+            🎲 Surprise Me — pick a random outfit
+          </button>
+
+          <p className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-2">Or choose one</p>
           <div className="space-y-2 mb-5">
             {outfits.map(outfit => {
               const preview = outfit.items.slice(0,3).map(getItem).filter(Boolean);
@@ -705,7 +783,7 @@ function TryOnView({ wardrobe, outfits }) {
                     <p className="font-bold text-gray-800 text-sm">{outfit.name}</p>
                     <p className="text-xs text-gray-400">{outfit.items.length} pieces · {outfit.occasion}</p>
                   </div>
-                  <div className={`w-5 h-5 rounded-full border-2 transition-all flex items-center justify-center text-xs
+                  <div className={`w-5 h-5 rounded-full border-2 transition-all flex items-center justify-center text-xs shrink-0
                     ${isSel?'bg-brand-500 border-brand-500 text-white':'border-gray-200'}`}>
                     {isSel&&'✓'}
                   </div>
